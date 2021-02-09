@@ -1,0 +1,13 @@
+.idea/
+venv/
+
+*.aux
+*.log
+*.pdf
+*.gz
+*.toc
+*.out
+*.bbl
+*.nlo
+*.blg
+
