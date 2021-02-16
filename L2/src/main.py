@@ -33,16 +33,16 @@ class NetworkMNIST:
         out_out = self.activation_func(out_in)
         return out_out, hid_out
 
+    def train(self, training_data: List):
+        for input_image, label in training_data:
+            self.update_weights(input_image, label)
+
     def update_weights(self, input_image: np.ndarray, label: np.ndarray):
         out, hid_out = self.calculate(input_image)
         out_epsilon = label - out
         hid_epsilon = self.hid_out_weights.T @ out_epsilon
         self.hid_out_weights += self.alpha * (out_epsilon * out * (1 - out)) @ hid_out.T
         self.in_hid_weights += self.alpha * (hid_epsilon * hid_out * (1 - hid_out)) @ input_image.T
-
-    def train(self, training_data: List):
-        for input_image, label in training_data:
-            self.update_weights(input_image, label)
 
     def validate(self, validation_data: List):
         results = []
@@ -72,20 +72,23 @@ def data_preprocessor(raw_data: np.ndarray):
 
 
 def get_params(*, default: bool = False):
+    DEFAULT_INPUT_NODES = 784
     DEFAULT_HIDDEN_NODES = 100
     DEFAULT_OUTPUT_NODES = 10
     DEFAULT_LEARNING_RATE = 0.5
 
     if default:
+        in_nodes = DEFAULT_INPUT_NODES
         hid_nodes = DEFAULT_HIDDEN_NODES
         out_nodes = DEFAULT_OUTPUT_NODES
         alpha = DEFAULT_LEARNING_RATE
     else:
+        in_nodes = int(input('Enter number of nodes in input layer: ') or DEFAULT_INPUT_NODES)
         hid_nodes = int(input('Enter number of nodes in hidden layer: ') or DEFAULT_HIDDEN_NODES)
         out_nodes = int(input('Enter number of output nodes: ') or DEFAULT_OUTPUT_NODES)
         alpha = float(input('Enter learning rate: ') or DEFAULT_LEARNING_RATE)
 
-    return hid_nodes, out_nodes, alpha
+    return in_nodes, hid_nodes, out_nodes, alpha
 
 
 def display_and_save_image(image, label):
@@ -97,6 +100,8 @@ def display_and_save_image(image, label):
 
 if __name__ == '__main__':
     np.random.seed(42)  # to get consistent results
+
+    VARIANT = 6
 
     img_path = '../img/'
 
@@ -110,8 +115,7 @@ if __name__ == '__main__':
     train_data = data_preprocessor(raw_train_data)  # [ (image, label_vector), ... ]
     test_data = data_preprocessor(raw_test_data)  # [ (image, label_vector), ... ]
 
-    in_nodes = train_data[0][0].size
-    hid_nodes, out_nodes, alpha = get_params(default=True)
+    in_nodes, hid_nodes, out_nodes, alpha = get_params(default=True)
 
     # initialize net and feed data to it
     nn = NetworkMNIST(in_nodes, hid_nodes, out_nodes, alpha=alpha)
@@ -124,13 +128,6 @@ if __name__ == '__main__':
         nn.train(train_data)
         nn.validate(test_data)
 
-    # display random image from set
-    image, label = np.random.default_rng().choice(test_data)
+    # display image from set
+    image, label = test_data[VARIANT]
     display_and_save_image(image, label)
-
-    # special task. nn with different number of hidden nodes
-    for hid_nodes in range(100, 1001, 100):
-        print(f'\nTraining with {hid_nodes} nodes in hidden layer.')
-        nn = NetworkMNIST(in_nodes, hid_nodes, out_nodes, alpha=alpha)
-        nn.train(train_data)
-        nn.validate(test_data)
