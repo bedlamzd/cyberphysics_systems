@@ -2,7 +2,7 @@ import csv
 from typing import List
 
 import numpy as np
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 from scipy.special import expit
 
 
@@ -20,9 +20,9 @@ class NetworkMNIST:
         self.output_nodes = output_nodes
         self.alpha = alpha
         self.activation_func = activation_func
-        self._init()
+        self._init_weights()
 
-    def _init(self):
+    def _init_weights(self):
         self.in_hid_weights = np.random.uniform(-.5, .5, (self.hidden_nodes, self.input_nodes))
         self.hid_out_weights = np.random.uniform(-.5, .5, (self.output_nodes, self.hidden_nodes))
 
@@ -35,10 +35,10 @@ class NetworkMNIST:
 
     def update_weights(self, input_image: np.ndarray, label: np.ndarray):
         out, hid_out = self.calculate(input_image)
-        out_epsilon = label - out # FIXME label I guess should be vector
-        hid_epsilon = self.hid_out_weights @ out_epsilon # FIXME dimensions are wrong
-        self.hid_out_weights += self.alpha * (out_epsilon * out * (1 - out)) @ hid_out
-        self.in_hid_weights += self.alpha * (hid_epsilon * hid_out * (1 - hid_out)) @ input_image
+        out_epsilon = label - out
+        hid_epsilon = self.hid_out_weights.T @ out_epsilon
+        self.hid_out_weights += self.alpha * (out_epsilon * out * (1 - out)) @ hid_out.T
+        self.in_hid_weights += self.alpha * (hid_epsilon * hid_out * (1 - hid_out)) @ input_image.T
 
     def train(self, training_data: List):
         for input_image, label in training_data:
@@ -52,7 +52,8 @@ class NetworkMNIST:
         print(f'Accuracy {np.mean(results) * 100}%')
 
     def validate_image(self, validation_image: np.ndarray, label: np.ndarray):
-        return label == np.argmax(self.calculate(validation_image))
+        return np.argmax(label) == np.argmax(self.calculate(validation_image)[0])
+
 
 def data_loader(fname):
     with open(fname, 'r') as file:
@@ -60,21 +61,66 @@ def data_loader(fname):
         data = np.array(data, dtype=int)
     return data
 
+
+def data_preprocessor(raw_data: np.ndarray):
+    processed_data = []
+    for row in raw_data:
+        image = np.array(row[1:] / 255, ndmin=2).T
+        label_vector = np.insert(np.zeros(9), row[0], 1).reshape((10, 1))
+        processed_data.append((image, label_vector))
+    return processed_data
+
+
+def get_params(*, default: bool = False):
+    DEFAULT_HIDDEN_NODES = 100
+    DEFAULT_OUTPUT_NODES = 10
+    DEFAULT_LEARNING_RATE = 0.5
+
+    if default:
+        hid_nodes = DEFAULT_HIDDEN_NODES
+        out_nodes = DEFAULT_OUTPUT_NODES
+        alpha = DEFAULT_LEARNING_RATE
+    else:
+        hid_nodes = int(input('Enter number of nodes in hidden layer: ') or DEFAULT_HIDDEN_NODES)
+        out_nodes = int(input('Enter number of output nodes: ') or DEFAULT_OUTPUT_NODES)
+        alpha = float(input('Enter learning rate: ') or DEFAULT_LEARNING_RATE)
+
+    return hid_nodes, out_nodes, alpha
+
+
 if __name__ == '__main__':
+    np.random.seed(42)  # to get consistent results
+
+    img_path = '../img/'
+
     train_data_path = '../data/mnist_train.csv'
     test_data_path = '../data/mnist_test.csv'
 
+    # load and prepare data. define parameters
     raw_train_data = data_loader(train_data_path)
     raw_test_data = data_loader(test_data_path)
 
-    train_data = [(row[1:]/255, row[0]) for row in raw_train_data]
-    test_data = [(row[1:]/255, row[0]) for row in raw_test_data]
+    train_data = data_preprocessor(raw_train_data)  # [ (image, label_vector), ... ]
+    test_data = data_preprocessor(raw_test_data)  # [ (image, label_vector), ... ]
 
     in_nodes = train_data[0][0].size
-    hid_nodes = 100
-    out_nodes = 10
-    alpha = 0.5
+    hid_nodes, out_nodes, alpha = get_params(default=True)
 
+    # initialize net and feed data to it
     nn = NetworkMNIST(in_nodes, hid_nodes, out_nodes, alpha=alpha)
     nn.train(train_data)
     nn.validate(test_data)
+
+    # a couple more training iterations
+    for _ in range(3):
+        print(f'Additional training iteration #{_ + 1}')
+        nn.train(train_data)
+        nn.validate(test_data)
+
+    # display random image from set
+    image, label = np.random.default_rng().choice(test_data)
+
+    f = plt.figure()
+    plt.imshow(image.reshape((28, 28)), cmap='gray')
+    f.suptitle(f'Image of digit "{np.argmax(label)}"')
+    f.savefig(img_path + 'random_image.png')
