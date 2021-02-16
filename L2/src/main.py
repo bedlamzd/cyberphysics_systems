@@ -88,6 +88,13 @@ def get_params(*, default: bool = False):
     return hid_nodes, out_nodes, alpha
 
 
+def display_and_save_image(image, label):
+    f = plt.figure()
+    plt.imshow(image.reshape((28, 28)), cmap='gray')
+    f.suptitle(f'Image of digit "{np.argmax(label)}"')
+    f.savefig(img_path + 'random_image.png')
+
+
 if __name__ == '__main__':
     np.random.seed(42)  # to get consistent results
 
@@ -119,8 +126,4 @@ if __name__ == '__main__':
 
     # display random image from set
     image, label = np.random.default_rng().choice(test_data)
-
-    f = plt.figure()
-    plt.imshow(image.reshape((28, 28)), cmap='gray')
-    f.suptitle(f'Image of digit "{np.argmax(label)}"')
-    f.savefig(img_path + 'random_image.png')
+    display_and_save_image(image, label)
