@@ -127,3 +127,10 @@ if __name__ == '__main__':
     # display random image from set
     image, label = np.random.default_rng().choice(test_data)
     display_and_save_image(image, label)
+
+    # special task. nn with different number of hidden nodes
+    for hid_nodes in range(100, 1001, 100):
+        print(f'\nTraining with {hid_nodes} nodes in hidden layer.')
+        nn = NetworkMNIST(in_nodes, hid_nodes, out_nodes, alpha=alpha)
+        nn.train(train_data)
+        nn.validate(test_data)
